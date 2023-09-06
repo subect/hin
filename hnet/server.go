@@ -1,6 +1,7 @@
 package hnet
 
 import (
+	"errors"
 	"fmt"
 	"hin/hiface"
 	"net"
@@ -46,6 +47,9 @@ func (s *Server) Start() {
 
 		fmt.Println("start HServer succ, ", s.Name, " succ, Listening...")
 
+		var cid uint32
+		cid = 0
+
 		//3.启动 server 网络连接业务
 		for {
 			//3.1 阻塞等待客户端建立连接请求
@@ -57,25 +61,12 @@ func (s *Server) Start() {
 
 			//TODO:设置服务器最大连接限制，如果超过最大连接数，则关闭新连接
 
-			//TODO：处理新连接请求的业务方法，此时 conn 和 handle 应该是 一一绑定的
+			//3.2 处理新连接请求的业务方法，此时 conn 和 handle 应该是 一一绑定的
+			dealConn := NewConnection(conn, cid, CallBackToClient)
+			cid++
 
-			//客户端建立连接，做一些业务，做一个最基本的最大512字节长度的回显业务
-			go func() {
-				for {
-					buf := make([]byte, 512)
-					cnt, err := conn.Read(buf)
-					if err != nil {
-						fmt.Println("recv buf err: ", err)
-						continue
-					}
-
-					//回显功能
-					if _, err := conn.Write(buf[:cnt]); err != nil {
-						fmt.Println("write back buf err: ", err)
-						continue
-					}
-				}
-			}()
+			// 启动当前连接的处理业务
+			go dealConn.Start()
 		}
 	}()
 }
@@ -91,4 +82,14 @@ func (s *Server) Serve() {
 
 	//阻塞，否则主 Go 会退出，listener 的 go将会退出
 	select {}
+}
+
+// CallBackToClient 定义当前客户端连接所绑定的 handle api（目前这个 handle 是写死的，以后优化成可配置的）
+func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
+	fmt.Println("[Conn Handle] CallBackToClient...")
+	if _, err := conn.Write(data[:cnt]); err != nil {
+		fmt.Println("write back buf err: ", err)
+		return errors.New("CallBackToClient error")
+	}
+	return nil
 }
