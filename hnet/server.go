@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"hin/hiface"
+	"hin/utils"
 	"net"
 )
 
@@ -17,12 +18,13 @@ type Server struct {
 }
 
 // NewServer 创建一个服务器句柄
-func NewServer(name string) hiface.IServer {
+func NewServer() hiface.IServer {
+	utils.GlobalObject.Reload()
 	s := &Server{
-		Name:      name,
+		Name:      utils.GlobalObject.Name,
 		IPVersion: "tcp4",
-		IP:        "0.0.0.0",
-		Port:      7777,
+		IP:        utils.GlobalObject.Host,
+		Port:      utils.GlobalObject.TcpPort,
 		Router:    nil,
 	}
 	return s
