@@ -13,6 +13,7 @@ type Server struct {
 	IPVersion string // 服务器绑定的IP版本
 	IP        string // 服务器监听的IP
 	Port      int    // 服务器监听的端口
+	Router    hiface.IRouter
 }
 
 // NewServer 创建一个服务器句柄
@@ -22,6 +23,7 @@ func NewServer(name string) hiface.IServer {
 		IPVersion: "tcp4",
 		IP:        "0.0.0.0",
 		Port:      7777,
+		Router:    nil,
 	}
 	return s
 }
@@ -62,7 +64,7 @@ func (s *Server) Start() {
 			//TODO:设置服务器最大连接限制，如果超过最大连接数，则关闭新连接
 
 			//3.2 处理新连接请求的业务方法，此时 conn 和 handle 应该是 一一绑定的
-			dealConn := NewConnection(conn, cid, CallBackToClient)
+			dealConn := NewConnection(conn, cid, s.Router)
 			cid++
 
 			// 启动当前连接的处理业务
@@ -82,6 +84,11 @@ func (s *Server) Serve() {
 
 	//阻塞，否则主 Go 会退出，listener 的 go将会退出
 	select {}
+}
+
+func (s *Server) AddRouter(router hiface.IRouter) {
+	s.Router = router
+	fmt.Println("Add Router succ!")
 }
 
 // CallBackToClient 定义当前客户端连接所绑定的 handle api（目前这个 handle 是写死的，以后优化成可配置的）

@@ -30,7 +30,7 @@ func main() {
 			return
 		}
 
-		fmt.Println("server call back:", string(buf[:cnt]))
+		fmt.Println("server call back:\n", string(buf[:cnt]))
 		time.Sleep(1 * time.Second)
 	}
 }
