@@ -3,6 +3,7 @@ package hnet
 import (
 	"fmt"
 	"hin/hiface"
+	"io"
 	"net"
 )
 
@@ -75,35 +76,54 @@ func (c *Connection) StartReader() {
 	defer c.Stop()
 
 	for {
-		// 读取客户端的数据到 buf 中，最大 512 字节
-		buf := make([]byte, 512)
-		_, err := c.Conn.Read(buf)
+
+		// 创建一个拆包解包的对象
+		dp := NewDataPack()
+
+		// 读取客户端的 Msg Head 二进制流 8 个字节
+		headData := make([]byte, dp.GetHeadLen())
+		_, err := io.ReadFull(c.GetTCPConnection(), headData)
 		if err != nil {
-			fmt.Println("recv buf err: ", err)
+			fmt.Println("read msg head error: ", err)
 			c.ExitChan <- true
 			continue
 		}
 
-		// 得到当前 conn 数据的 Request 请求数据
-		req := Request{
-			conn: c,
-			data: buf,
+		// 拆包，得到 msgID 和 msgDataLen 放在 msg 消息中
+		msg, err := dp.Unpack(headData)
+		if err != nil {
+			fmt.Println("unpack error: ", err)
+			c.ExitChan <- true
+			continue
 		}
 
-		// 从路由中，找到注册绑定的 Conn 对应的 router 调用
+		// 根据 dataLen 再次读取 data，放在 msg.Data 中
+		var data []byte
+		if msg.GetDataLen() > 0 {
+			data = make([]byte, msg.GetDataLen())
+			_, err := io.ReadFull(c.GetTCPConnection(), data)
+			if err != nil {
+				fmt.Println("read msg data error: ", err)
+				c.ExitChan <- true
+				continue
+			}
+		}
+		msg.SetData(data)
+
+		// 得到当前 conn 数据的 Request 请求数据
+
+		req := Request{
+			conn: c,
+			msg:  msg,
+		}
+
+		// 从 router 中，找到注册绑定的 Conn 对应的 router 调用
 		go func(request hiface.IRequest) {
 			// 执行注册的路由方法
 			c.Router.PreHandle(request)
 			c.Router.Handle(request)
 			c.Router.PostHandle(request)
 		}(&req)
-
-		// 调用当前连接所绑定的 HandleAPI
-		//if err := c.handleAPI(c.Conn, buf, cnt); err != nil {
-		//	fmt.Println("ConnID ", c.ConnID, " handle is error")
-		//	c.ExitChan <- true
-		//	break
-		//}
 	}
 }
 
@@ -120,4 +140,28 @@ func (c *Connection) GetConnID() uint32 {
 // RemoteAddr 获取远程客户端的 TCP 状态 IP port
 func (c *Connection) RemoteAddr() net.Addr {
 	return c.Conn.RemoteAddr()
+}
+
+// SendMsg 发送数据，将数据发送给远程的客户端
+func (c *Connection) SendMsg(msgId uint32, data []byte) error {
+	if c.isClosed == true {
+		return fmt.Errorf("connection closed when send msg")
+	}
+	// 将 data 进行封包 MsgDataLen|MsgID|Data
+	dp := NewDataPack()
+
+	binaryMsg, err := dp.Pack(NewMsgPackage(msgId, data))
+	if err != nil {
+		fmt.Println("Pack error msg id = ", msgId)
+		return fmt.Errorf("pack error msg id = %v", msgId)
+	}
+
+	// 将数据发送给客户端
+	if _, err := c.Conn.Write(binaryMsg); err != nil {
+		fmt.Println("Write msg id = ", msgId, " error: ", err)
+		c.ExitChan <- true
+		return fmt.Errorf("write msg id = %v, error: %v", msgId, err)
+	}
+
+	return nil
 }

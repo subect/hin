@@ -2,5 +2,6 @@
   "host": "127.0.0.1",
   "port": 7777,
   "name": "hin",
-  "version": "0.0.1"
+  "version": "0.0.1",
+  "maxPackage": 1024
 }

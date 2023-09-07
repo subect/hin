@@ -14,6 +14,8 @@ type IConnection interface {
 	GetConnID() uint32
 	// RemoteAddr 获取远程客户端的 TCP 状态 IP port
 	RemoteAddr() net.Addr
+	// SendMsg 发送数据，将数据发送给远程的客户端
+	SendMsg(msgId uint32, data []byte) error
 }
 
 // HandleFunc 定义一个统一处理连接业务的接口
