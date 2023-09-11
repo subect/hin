@@ -18,3 +18,8 @@ func (r *Request) GetConnection() hiface.IConnection {
 func (r *Request) GetData() []byte {
 	return r.msg.GetData()
 }
+
+// GetMsgID 获取请求消息的ID
+func (r *Request) GetMsgID() uint32 {
+	return r.msg.GetMsgId()
+}

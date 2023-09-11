@@ -16,20 +16,20 @@ type Connection struct {
 	isClosed bool
 
 	// 该连接的处理方法 router
-	Router hiface.IRouter
+	MsgHandler hiface.IMsgHandler
 
 	// 告知当前连接已经退出/停止的 channel
 	ExitChan chan bool
 }
 
 // NewConnection 初始化连接模块的方法
-func NewConnection(conn *net.TCPConn, connID uint32, router hiface.IRouter) *Connection {
+func NewConnection(conn *net.TCPConn, connID uint32, msgHandler hiface.IMsgHandler) *Connection {
 	c := &Connection{
-		Conn:     conn,
-		ConnID:   connID,
-		isClosed: false,
-		ExitChan: make(chan bool, 1),
-		Router:   router,
+		Conn:       conn,
+		ConnID:     connID,
+		isClosed:   false,
+		ExitChan:   make(chan bool, 1),
+		MsgHandler: msgHandler,
 	}
 	return c
 }
@@ -118,12 +118,7 @@ func (c *Connection) StartReader() {
 		}
 
 		// 从 router 中，找到注册绑定的 Conn 对应的 router 调用
-		go func(request hiface.IRequest) {
-			// 执行注册的路由方法
-			c.Router.PreHandle(request)
-			c.Router.Handle(request)
-			c.Router.PostHandle(request)
-		}(&req)
+		go c.MsgHandler.DoMsgHandler(&req)
 	}
 }
 

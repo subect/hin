@@ -10,22 +10,22 @@ import (
 
 // Server 服务器类
 type Server struct {
-	Name      string // 服务器名称
-	IPVersion string // 服务器绑定的IP版本
-	IP        string // 服务器监听的IP
-	Port      int    // 服务器监听的端口
-	Router    hiface.IRouter
+	Name       string // 服务器名称
+	IPVersion  string // 服务器绑定的IP版本
+	IP         string // 服务器监听的IP
+	Port       int    // 服务器监听的端口
+	MsgHandler hiface.IMsgHandler
 }
 
 // NewServer 创建一个服务器句柄
 func NewServer() hiface.IServer {
 	utils.GlobalObject.Reload()
 	s := &Server{
-		Name:      utils.GlobalObject.Name,
-		IPVersion: "tcp4",
-		IP:        utils.GlobalObject.Host,
-		Port:      utils.GlobalObject.TcpPort,
-		Router:    nil,
+		Name:       utils.GlobalObject.Name,
+		IPVersion:  "tcp4",
+		IP:         utils.GlobalObject.Host,
+		Port:       utils.GlobalObject.TcpPort,
+		MsgHandler: NewMsgHandler(),
 	}
 	return s
 }
@@ -66,7 +66,7 @@ func (s *Server) Start() {
 			//TODO:设置服务器最大连接限制，如果超过最大连接数，则关闭新连接
 
 			//3.2 处理新连接请求的业务方法，此时 conn 和 handle 应该是 一一绑定的
-			dealConn := NewConnection(conn, cid, s.Router)
+			dealConn := NewConnection(conn, cid, s.MsgHandler)
 			cid++
 
 			// 启动当前连接的处理业务
@@ -88,9 +88,11 @@ func (s *Server) Serve() {
 	select {}
 }
 
-func (s *Server) AddRouter(router hiface.IRouter) {
-	s.Router = router
-	fmt.Println("Add Router succ!")
+func (s *Server) AddRouter(msgId uint32, router hiface.IRouter) {
+	// 判断当前 msg 绑定的 API 处理方法是否已经存在
+	s.MsgHandler.AddRouter(msgId, router)
+	fmt.Println("Add api msgId = ", msgId)
+
 }
 
 // CallBackToClient 定义当前客户端连接所绑定的 handle api（目前这个 handle 是写死的，以后优化成可配置的）

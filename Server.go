@@ -24,11 +24,28 @@ func (pr *PingRouter) Handle(request hiface.IRequest) {
 	}
 }
 
+type HelloRouter struct {
+	hnet.BaseRouter
+}
+
+func (hr *HelloRouter) Handle(request hiface.IRequest) {
+	fmt.Println("call HelloRouter Handle...")
+	fmt.Println("recv from client: msgId = ", request.GetMsgID(), ", data = ", string(request.GetData()))
+
+	// 回写数据
+	err := request.GetConnection().SendMsg(1, []byte("Hello, Welcome to Hin V0.6"))
+	if err != nil {
+		fmt.Println("call back Hello error")
+		return
+	}
+}
+
 //Server 模块的测试函数
 func main() {
 	s := hnet.NewServer()
 
-	s.AddRouter(&PingRouter{})
+	s.AddRouter(0, &PingRouter{})
+	s.AddRouter(1, &HelloRouter{})
 
 	s.Serve()
 }
